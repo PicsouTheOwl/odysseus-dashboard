@@ -713,6 +713,51 @@ from routes.hermes_agent_routes import setup_hermes_agent_routes
 hermes_agent_router = setup_hermes_agent_routes()
 app.include_router(hermes_agent_router)
 
+# ─── Boubane Modules ─ business, calendar, kanban, hermes chat ───
+# Add Boubane to path so 'from boubane_app...' works in Boubane modules
+import sys as _sys
+if "/home/ubuntu/boubane-agent" not in _sys.path:
+    _sys.path.insert(0, "/home/ubuntu/boubane-agent")
+
+import importlib.util as _importlib_util
+
+def _load_boubane_router(module_path: str, prefix: str = "", tags: list = None):
+    """Load a router from Boubane Agent modules dynamically."""
+    import sys
+    try:
+        full_path = f"/home/ubuntu/boubane-agent/boubane_app/modules/{module_path}"
+        mod_name = f"boubane_{module_path.replace('/', '_').replace('.py', '')}"
+        spec = _importlib_util.spec_from_file_location(mod_name, full_path)
+        if spec and spec.loader:
+            mod = _importlib_util.module_from_spec(spec)
+            sys.modules[mod_name] = mod
+            spec.loader.exec_module(mod)
+            router = getattr(mod, "router", None)
+            if router:
+                app.include_router(router, prefix=prefix, tags=tags or [])
+                logger.info(f"Loaded Boubane module: {module_path}")
+                return True
+    except Exception as _e:
+        logger.warning(f"Boubane module {module_path} not loaded: {_e}")
+    return False
+
+# Hermes chat routes
+_load_boubane_router("hermes/routes.py", tags=["hermes-chat"])
+# Business
+_load_boubane_router("business.py", prefix="/api/business", tags=["business"])
+# Calendar
+_load_boubane_router("calendar.py", prefix="/api/calendar", tags=["calendar-boubane"])
+# Kanban
+_load_boubane_router("kanban.py", tags=["kanban"])
+# Agent
+_load_boubane_router("agent.py", prefix="/api/agent", tags=["agent-boubane"])
+# Files
+_load_boubane_router("files.py", prefix="/api/files", tags=["files-boubane"])
+# Web
+_load_boubane_router("web.py", prefix="/api/web", tags=["web-boubane"])
+# Himalaya
+_load_boubane_router("himalaya_mail.py", tags=["himalaya"])
+
 # Codex integration — HTTP surface for the Codex plugin/MCP bridge. Reuses
 # api_token scopes (todos:read|write, email:read|draft|send) so external
 # Codex sessions can only touch the data the user explicitly allowed. Mounted
