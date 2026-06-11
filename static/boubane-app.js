@@ -27,13 +27,50 @@
     mail.detailEl = document.getElementById('mail-detail-pane');
     initNav(); initUpload(); initKeyboard();
     loadStats(); loadActivity(); loadDashEmails(); loadFiles();
+    initGreeting(); initTheme();
     setInterval(loadStats, 30000);
     setInterval(loadActivity, 60000);
+    setInterval(updateClock, 1000);
   });
 
   /* ═══════════════════════════════════════════
-     UTILS
+     THEME
      ═══════════════════════════════════════════ */
+  function initTheme() {
+    const saved = localStorage.getItem('boubane-theme');
+    if (saved === 'light') {
+      document.documentElement.classList.add('theme-light');
+      const btn = $('theme-toggle-btn');
+      if (btn) btn.innerHTML = ICONS.sun || '☀';
+    }
+  }
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('theme-light');
+    localStorage.setItem('boubane-theme', isLight ? 'light' : 'dark');
+    const btn = $('theme-toggle-btn');
+    if (btn) btn.innerHTML = isLight ? (ICONS.sun || '☀') : (ICONS.moon || '🌙');
+    toast(isLight ? 'Mode clair activé' : 'Mode sombre activé', 'info');
+  }
+  window.toggleTheme = toggleTheme;
+
+  /* ═══════════════════════════════════════════
+     GREETING & CLOCK
+     ═══════════════════════════════════════════ */
+  function initGreeting() {
+    const h = new Date().getHours();
+    const greeting = h < 6 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+    const el = $('dash-greeting');
+    if (el) el.textContent = greeting + ', Leo';
+    updateClock();
+  }
+  function updateClock() {
+    const el = $('dash-clock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const dateEl = $('dash-date');
+    if (dateEl) dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
   const $ = id => document.getElementById(id);
 
   async function api(url, opts = {}) {
@@ -68,7 +105,24 @@
     return AV_COLORS[Math.abs(h)%AV_COLORS.length];
   }
   // toast removed — silent UX
-  function toast(msg, type = 'info') {}
+  function toast(msg, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const t = document.createElement('div');
+    t.className = `toast toast--${type}`;
+    const icons = { success:'✓', error:'✕', info:'ℹ', warning:'⚠' };
+    t.innerHTML = `<span class="toast-icon">${icons[type]||icons.info}</span><span class="toast-msg">${esc(msg)}</span>`;
+    container.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('toast--show'));
+    setTimeout(() => {
+      t.classList.remove('toast--show');
+      setTimeout(() => t.remove(), 300);
+    }, 3500);
+  }
 
   function sanitize(html) {
     if (!html) return '';
@@ -1023,7 +1077,7 @@
           buf = lines.pop() || '';
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const d = line[6:].trim();
+              const d = line.substring(6).trim();
               if (d === '[DONE]') continue;
               try {
                 const data = JSON.parse(d);

@@ -125,12 +125,15 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <div>
-            <h1>Bonjour, Leo</h1>
-            <p class="page-subtitle">Votre agent IA local est prêt.</p>
+            <h1 id="dash-greeting">Bonjour, Leo</h1>
+            <p class="page-subtitle"><span id="dash-clock"></span> · <span id="dash-date"></span></p>
           </div>
         </div>
         <div class="page-header-right">
-          <button class="btn btn-primary" onclick="switchPage('agent-chat')">
+          <button class="btn btn-ghost btn-sm" id="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème" style="margin-right:8px;padding:6px 10px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button class="btn btn-primary" onclick="go('agent-chat')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
             Discuter avec l'agent
           </button>
@@ -182,7 +185,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:6px;vertical-align:text-bottom"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M22 7l-10 7L2 7"/></svg>
               Derniers emails
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="switchPage('emails')">Boîte mail</button>
+            <button class="btn btn-ghost btn-sm" onclick="go('emails')">Boîte mail</button>
           </div>
           <div id="dash-email-list">
             <div class="loading-row"><div class="spinner"></div></div>
@@ -196,7 +199,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:6px;vertical-align:text-bottom"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               Activité récente
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="switchPage('activity')">Tout voir</button>
+            <button class="btn btn-ghost btn-sm" onclick="go('activity')">Tout voir</button>
           </div>
           <div class="activity-list" id="dash-activity-list">
             <div class="loading-row"><div class="spinner"></div></div>
@@ -211,7 +214,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:6px;vertical-align:text-bottom"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Fichiers récents
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="switchPage('files')">Tous les fichiers</button>
+          <button class="btn btn-ghost btn-sm" onclick="go('files')">Tous les fichiers</button>
         </div>
         <div class="file-list" id="dash-file-list">
           <div class="loading-row"><div class="spinner"></div></div>
@@ -794,7 +797,7 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Derniers clients</div>
-            <button class="btn btn-ghost btn-sm" onclick="switchPage('clients')">Tous</button>
+            <button class="btn btn-ghost btn-sm" onclick="go('clients')">Tous</button>
           </div>
           <div id="biz-recent-clients">
             <div class="loading-row"><div class="spinner"></div></div>
@@ -938,7 +941,7 @@
               Hermes est l'agent IA principal de Boubane. Il gère les emails, les fichiers, la navigation web et les réponses automatiques.
             </div>
             <div style="margin-top:1rem;display:flex;gap:0.4rem">
-              <button class="btn btn-ghost btn-sm" onclick="switchPage('agent-chat')">Tester</button>
+              <button class="btn btn-ghost btn-sm" onclick="go('agent-chat')">Tester</button>
               <button class="btn btn-ghost btn-sm" onclick="toast('Configuration bientôt disponible')">Configurer</button>
             </div>
           </div>
@@ -971,13 +974,54 @@
       </div>
       <div class="dashboard-grid">
         <div class="card">
-          <div class="card-header"><div class="card-title">Agent</div></div>
+          <div class="card-header"><div class="card-title">État de l'agent</div></div>
           <div id="agent-status"><p style="color:var(--text-muted);font-size:0.85rem">Chargement…</p></div>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title">Boîte mail</div></div>
           <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem">Gérée via Himalaya CLI (IMAP/SMTP).</p>
-          <button class="btn btn-secondary" onclick="switchPage('emails')">Ouvrir la messagerie</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="go('emails')">Ouvrir la messagerie</button>
+            <button class="btn btn-ghost btn-sm" onclick="mailRefresh(); toast('Boîte mail actualisée','success')">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Réponses automatiques</div></div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <label style="display:flex;align-items:center;gap:10px;font-size:0.875rem">
+              <input type="checkbox" id="auto-enabled" onchange="saveAutoConfig()" style="accent-color:var(--accent)">
+              Activer les réponses automatiques
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:0.875rem">
+              <input type="checkbox" id="auto-sort" onchange="saveAutoConfig()" style="accent-color:var(--accent)">
+              Tri automatique des mails
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:0.875rem">
+              <input type="checkbox" id="auto-reply-draft" onchange="saveAutoConfig()" style="accent-color:var(--accent)">
+              Brouillons de réponse auto
+            </label>
+            <div>
+              <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px">Intervalle de polling (minutes)</label>
+              <input type="number" id="auto-poll-interval" value="5" min="1" max="60" style="width:80px;background:var(--bg-surface-3);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:0.85rem">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="saveAutoConfig()">Sauvegarder</button>
+              <button class="btn btn-ghost btn-sm" onclick="triggerAutoProcess()">▶ Lancer maintenant</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Raccourcis clavier</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.8rem">
+            <span style="color:var(--text-muted)">Navigation</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">j/k</span>
+            <span style="color:var(--text-muted)">Ouvrir mail</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">Entrée</span>
+            <span style="color:var(--text-muted)">Répondre</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">r</span>
+            <span style="color:var(--text-muted)">Supprimer</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">Del</span>
+            <span style="color:var(--text-muted)">Archiver</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">e</span>
+            <span style="color:var(--text-muted)">Recherche</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">Ctrl+K</span>
+            <span style="color:var(--text-muted)">Nouveau mail</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">c</span>
+            <span style="color:var(--text-muted)">Envoyer</span><span style="font-family:monospace;background:var(--bg-surface-3);padding:2px 6px;border-radius:4px">Ctrl+Entrée</span>
+          </div>
         </div>
       </div>
     </section>
