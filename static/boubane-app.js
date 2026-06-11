@@ -352,24 +352,58 @@
     }
   }
 
+  let activityData = [];
   async function loadActivity() {
     try {
-      const d = await api('/api/agent/activity?limit=30');
-      ['full-activity-list','dash-activity-list'].forEach((cid, i) => {
-        const c = $(cid); if (!c) return;
-        const items = (d.activity||[]).slice(0, i === 0 ? 30 : 10);
-        if (!items.length) { c.innerHTML = '<div class="empty-state"><p>Aucune activité</p></div>'; return; }
-        c.innerHTML = items.map(it => {
-          const dot = it.status==='success'?'green':it.status==='error'?'red':'purple';
-          return `<div class="activity-item">
-            <div class="activity-dot ${dot}"></div>
-            <div><div class="activity-text"><strong>${esc(it.action)}</strong> — ${esc(it.details||'')}</div>
-            <div class="activity-time">${it.time?new Date(it.time).toLocaleString('fr-FR'):''}</div></div>
-          </div>`;
-        }).join('');
-      });
+      const d = await api('/api/agent/activity?limit=50');
+      activityData = d.activity || [];
+      renderActivity('full-activity-list', activityData, 30);
+      renderActivity('dash-activity-list', activityData, 10);
+      updateActivityChart();
     } catch(e) {}
   }
+  function renderActivity(cid, items, limit) {
+    const c = $(cid); if (!c) return;
+    const sliced = items.slice(0, limit);
+    if (!sliced.length) { c.innerHTML = '<div class="empty-state"><p>Aucune activité</p></div>'; return; }
+    c.innerHTML = sliced.map(it => {
+      const dot = it.status==='success'?'green':it.status==='error'?'red':'purple';
+      return `<div class="activity-item" data-status="${it.status||''}">
+        <div class="activity-dot ${dot}"></div>
+        <div><div class="activity-text"><strong>${esc(it.action)}</strong> — ${esc(it.details||'')}</div>
+        <div class="activity-time">${it.time?new Date(it.time).toLocaleString('fr-FR'):''}</div></div>
+      </div>`;
+    }).join('');
+  }
+  // ─── Activity Chart ───
+  function updateActivityChart() {
+    const days = ['sun','mon','tue','wed','thu','fri','sat'];
+    const counts = {};
+    days.forEach(d => counts[d] = 0);
+    const now = new Date();
+    activityData.forEach(a => {
+      if (!a.time) return;
+      const d = new Date(a.time);
+      const diff = Math.floor((now - d) / 86400000);
+      if (diff < 7) {
+        const day = days[d.getDay()];
+        counts[day]++;
+      }
+    });
+    const max = Math.max(...Object.values(counts), 1);
+    days.forEach(d => {
+      const el = $(`chart-${d}`);
+      if (el) el.style.height = `${Math.max(8, (counts[d] / max) * 100)}%`;
+    });
+  }
+  window.filterActivity = function(filter, btn) {
+    document.querySelectorAll('[data-act-filter]').forEach(b=>{
+      b.classList.remove('btn-secondary'); b.classList.add('btn-ghost');
+    });
+    btn.classList.add('btn-secondary'); btn.classList.remove('btn-ghost');
+    const filtered = filter === 'all' ? activityData : activityData.filter(a => (a.status||'') === filter);
+    renderActivity('full-activity-list', filtered, 50);
+  };
 
   /* ═══════════════════════════════════════════
      FILES

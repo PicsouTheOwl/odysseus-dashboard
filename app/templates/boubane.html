@@ -6,8 +6,8 @@
 <title>Boubane — Agent IA Local</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/style.css?v=49">
-<link rel="stylesheet" href="/static/css/mail.css?v=49">
+<link rel="stylesheet" href="/static/css/style.css?v=53">
+<link rel="stylesheet" href="/static/css/mail.css?v=53">
 </head>
 <body>
 
@@ -173,6 +173,43 @@
           <div class="stat-value" id="stat-actions">—</div>
           <div class="stat-label">Actions</div>
           <div class="stat-sub">aujourd'hui</div>
+        </div>
+      </div>
+
+      <!-- Activity Chart -->
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header">
+          <div class="card-title">Activité des 7 derniers jours</div>
+        </div>
+        <div id="dash-activity-chart" style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 0.5rem 0.5rem">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:60%;background:var(--accent);border-radius:4px 4px 0 0;opacity:0.7" id="chart-mon"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Lun</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:80%;background:var(--accent);border-radius:4px 4px 0 0;opacity:0.7" id="chart-tue"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Mar</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:40%;background:var(--accent);border-radius:4px 4px 0 0;opacity:0.7" id="chart-wed"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Mer</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:90%;background:var(--accent);border-radius:4px 4px 0 0;opacity:0.7" id="chart-thu"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Jeu</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:100%;background:var(--accent);border-radius:4px 4px 0 0" id="chart-fri"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Ven</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:30%;background:var(--accent);border-radius:4px 4px 0 0;opacity:0.5" id="chart-sat"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Sam</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="width:100%;height:20%;background:var(--accent);border-radius:4px 4px 0 0;opacity:0.5" id="chart-sun"></div>
+            <span style="font-size:0.6rem;color:var(--text-muted)">Dim</span>
+          </div>
         </div>
       </div>
 
@@ -500,9 +537,14 @@
           <p class="page-subtitle">Historique complet des actions de votre agent.</p>
         </div>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="btn btn-sm btn-secondary" data-act-filter="all" onclick="filterActivity('all',this)">Tout</button>
+        <button class="btn btn-sm btn-ghost" data-act-filter="success" onclick="filterActivity('success',this)">✓ Succès</button>
+        <button class="btn btn-sm btn-ghost" data-act-filter="error" onclick="filterActivity('error',this)">✕ Erreurs</button>
+      </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Journal d'activité</div></div>
-        <div class="activity-list" id="full-activity-list">
+        <div class="activity-list" id="full-activity-list" style="max-height:600px;overflow-y:auto">
           <div class="loading-row"><div class="spinner"></div></div>
         </div>
       </div>
