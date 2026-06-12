@@ -1129,7 +1129,7 @@
     // Stream via fetch + ReadableStream (SSE)
     const bubbleContainer = load.querySelector('.chat-msg-bubble');
     let fullText = '';
-    fetch('/api/hermes/chat/stream', {
+    fetch('/api/chatproxy/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: chatMsgs.map(m=>({role:m.role,content:m.content})) }),
@@ -1141,12 +1141,26 @@
       function read() {
         reader.read().then(({done, value}) => {
           if (done) {
-            const el = $('chat-load'); if (el) el.remove();
-            if (fullText) {
-              chatMsgs.push({role:'assistant', content:fullText});
-              // Replace typing indicator with final message
-              chatAdd('assistant', fullText, {noDateSep: true});
+            // Remove typing indicator, replace with final clean bubble
+            const el = $('chat-load');
+            if (el) {
+              if (fullText) {
+                // Replace the streaming bubble with final text (no cursor)
+                bubbleContainer.innerHTML = esc(fullText);
+                // Remove the loading class so it looks like a normal message
+                load.classList.remove('chat-msg');
+                load.id = '';
+                // Add time
+                const t = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'chat-msg-time';
+                timeDiv.textContent = t;
+                load.querySelector('div:last-child').appendChild(timeDiv);
+              } else {
+                el.remove();
+              }
             }
+            if (fullText) chatMsgs.push({role:'assistant', content:fullText});
             return;
           }
           buf += decoder.decode(value, {stream: true});

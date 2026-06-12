@@ -41,9 +41,10 @@ import secrets
 from datetime import datetime
 from typing import Dict
 
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -170,6 +171,7 @@ if AUTH_ENABLED:
         "/api/auth/integrations/presets",
         "/api/health",
         "/api/version",
+        "/api/chatproxy",
         "/login",
     }
     AUTH_EXEMPT_PREFIXES = ["/static"]
@@ -187,7 +189,7 @@ if AUTH_ENABLED:
     ]
 
     def _is_auth_exempt(path: str) -> bool:
-        if path in AUTH_EXEMPT_EXACT:
+        if path in AUTH_EXEMPT_EXACT or path.startswith("/api/chatproxy"):
             return True
         if any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES):
             return True
@@ -888,6 +890,64 @@ async def runtime_info() -> Dict[str, object]:
         "in_docker": in_docker,
         "ollama_base_url": ollama_url,
     }
+
+# ========= CHAT PROXY → HERMES BRIDGE =========
+
+HERMES_BRIDGE_URL = "http://127.0.0.1:8643"
+
+@app.post("/api/chatproxy")
+async def chatproxy(request: Request):
+    """Proxy vers le bridge Hermes (port 8643) — pas d'auth requise (déjà protégé par le middleware Odysseus)."""
+    body = await request.json()
+    # Convertir le format messages[] → message simple pour le bridge
+    if "messages" in body:
+        msgs = body["messages"]
+        # Construire un contexte à partir de l'historique
+        context_lines = []
+        for m in msgs[:-1]:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            context_lines.append(f"{role}: {content}")
+        last_msg = msgs[-1].get("content", "") if msgs else ""
+        bridge_body = {
+            "message": last_msg,
+            "context": "\n".join(context_lines) if context_lines else None,
+            "session_id": body.get("session_id"),
+        }
+    else:
+        bridge_body = body
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(f"{HERMES_BRIDGE_URL}/chat", json=bridge_body)
+        return JSONResponse(status_code=resp.status_code, content=resp.json())
+
+@app.post("/api/chatproxy/stream")
+async def chatproxy_stream(request: Request):
+    """Proxy streaming SSE vers le bridge Hermes."""
+    body = await request.json()
+    if "messages" in body:
+        msgs = body["messages"]
+        context_lines = []
+        for m in msgs[:-1]:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            context_lines.append(f"{role}: {content}")
+        last_msg = msgs[-1].get("content", "") if msgs else ""
+        bridge_body = {
+            "message": last_msg,
+            "context": "\n".join(context_lines) if context_lines else None,
+            "session_id": body.get("session_id"),
+        }
+    else:
+        bridge_body = body
+
+    async def event_stream():
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream("POST", f"{HERMES_BRIDGE_URL}/chat/stream", json=bridge_body) as resp:
+                async for chunk in resp.aiter_text():
+                    yield chunk
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # ========= LIFECYCLE =========
 
