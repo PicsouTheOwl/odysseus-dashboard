@@ -1519,47 +1519,128 @@
     const container = $('kanban-board');
     if (!container) return;
     const {columns, cards} = await api('/api/kanban/');
-    // Render columns
-    container.innerHTML = columns.map(col => `
+
+    const priorityLabels = { urgent:'Urgent', high:'Haute', normal:'Normale', low:'Basse' };
+
+    container.innerHTML = columns.map(col => {
+      const colCards = cards.filter(c => c.column === col);
+      return `
       <div class="kanban-col" data-col="${esc(col)}">
         <div class="kanban-col-header">
           <span class="kanban-col-title">${esc(col)}</span>
-          <span class="kanban-col-count">${cards.filter(c=>c.column===col).length}</span>
+          <span class="kanban-col-count">${colCards.length}</span>
         </div>
         <div class="kanban-col-body" data-col="${esc(col)}">
-          ${cards.filter(c=>c.column===col).map(card => `
-            <div class="kanban-card" draggable="true" data-id="${card.id}" ondragstart="kanbanDragStart(event)">
+          ${colCards.map(card => `
+            <div class="kanban-card priority-${card.priority||'normal'}" draggable="true" data-id="${card.id}" ondragstart="kanbanDragStart(event)" ondblclick="kanbanEditCard('${card.id}')">
               <div class="kanban-card-title">${esc(card.title)}</div>
               ${card.sender ? `<div class="kanban-card-from">De: ${esc(card.sender)}</div>` : ''}
+              ${card.description ? `<div class="kanban-card-desc">${esc(card.description).substring(0,120)}</div>` : ''}
+              <div class="kanban-card-meta">
+                <span class="kanban-card-priority ${card.priority||'normal'}">${priorityLabels[card.priority||'normal']}</span>
+                ${card.created_at ? `<span class="kanban-card-date">${fmtDate(card.created_at)}</span>` : ''}
+              </div>
               <div class="kanban-card-actions">
-                <button class="kanban-card-btn" onclick="kanbanDeleteCard('${card.id}')">${ICONS.trash}</button>
+                <button class="kanban-card-btn edit" onclick="kanbanEditCard('${card.id}')" title="Modifier">✎</button>
+                <button class="kanban-card-btn" onclick="kanbanDeleteCard('${card.id}')" title="Supprimer">✕</button>
               </div>
             </div>`).join('')}
         </div>
         <button class="kanban-add-btn" onclick="kanbanAddCard('${esc(col)}')">+ Ajouter</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+
     // Drop zones
     document.querySelectorAll('.kanban-col-body').forEach(el => {
       el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
       el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-      el.addEventListener('drop', e => {
+      el.addEventListener('drop', async e => {
         e.preventDefault(); el.classList.remove('drag-over');
         const cardId = e.dataTransfer.getData('text/plain');
         const col = el.dataset.col;
-        api('/api/kanban/move', {method:'POST', body:JSON.stringify({card_id:cardId, column:col})}).then(() => loadKanban());
+        await api('/api/kanban/move', {method:'POST', body:JSON.stringify({card_id:cardId, column:col})});
+        loadKanban();
+        toast('Carte déplacée', 'success');
       });
     });
   };
-  window.kanbanDragStart = function(e) { e.dataTransfer.setData('text/plain', e.currentTarget.dataset.id); };
+
+  window.kanbanDragStart = function(e) {
+    e.dataTransfer.setData('text/plain', e.currentTarget.dataset.id);
+    e.currentTarget.classList.add('dragging');
+    setTimeout(() => e.currentTarget.classList.remove('dragging'), 0);
+  };
+
   window.kanbanDeleteCard = async function(id) {
+    if (!confirm('Supprimer cette carte ?')) return;
     await api(`/api/kanban/card/${id}`, {method:'DELETE'});
     loadKanban();
+    toast('Carte supprimée', 'success');
   };
-  window.kanbanAddCard = async function(col) {
-    const title = prompt('Titre de la tâche:');
-    if (!title) return;
-    await api('/api/kanban/card', {method:'POST', body:JSON.stringify({title, column:col})});
-    loadKanban();
+
+  window.kanbanAddCard = function(col) {
+    kanbanShowModal(col);
   };
+
+  window.kanbanEditCard = async function(id) {
+    const {cards} = await api('/api/kanban/');
+    const card = cards.find(c => c.id === id);
+    if (!card) return;
+    kanbanShowModal(card.column, card);
+  };
+
+  function kanbanShowModal(col, existing) {
+    const overlay = document.createElement('div');
+    overlay.className = 'kanban-modal-overlay';
+    overlay.innerHTML = `
+      <div class="kanban-modal">
+        <div class="kanban-modal-title">${existing ? 'Modifier la carte' : 'Nouvelle carte'}</div>
+        <div class="form-group">
+          <label class="form-label">Titre</label>
+          <input type="text" class="form-input" id="kanban-title" value="${existing ? esc(existing.title) : ''}" placeholder="Titre de la tâche...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" id="kanban-desc" rows="3" placeholder="Description (optionnel)">${existing ? esc(existing.description||'') : ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priorité</label>
+          <select class="form-input" id="kanban-priority">
+            <option value="normal" ${existing?.priority==='normal'?'selected':''}>Normale</option>
+            <option value="low" ${existing?.priority==='low'?'selected':''}>Basse</option>
+            <option value="high" ${existing?.priority==='high'?'selected':''}>Haute</option>
+            <option value="urgent" ${existing?.priority==='urgent'?'selected':''}>Urgente</option>
+          </select>
+        </div>
+        <div class="kanban-modal-actions">
+          <button class="btn btn-ghost btn-sm" onclick="this.closest('.kanban-modal-overlay').remove()">Annuler</button>
+          <button class="btn btn-primary btn-sm" id="kanban-save-btn">Enregistrer</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    $('kanban-title').focus();
+    $('kanban-save-btn').onclick = async () => {
+      const title = $('kanban-title').value.trim();
+      if (!title) { toast('Titre requis', 'warning'); return; }
+      const body = {
+        title,
+        description: $('kanban-desc').value.trim(),
+        priority: $('kanban-priority').value,
+        column: col,
+      };
+      try {
+        if (existing) {
+          await api(`/api/kanban/card/${existing.id}`, {method:'PATCH', body:JSON.stringify(body)});
+          toast('Carte modifiée', 'success');
+        } else {
+          await api('/api/kanban/card', {method:'POST', body:JSON.stringify(body)});
+          toast('Carte créée', 'success');
+        }
+        overlay.remove();
+        loadKanban();
+      } catch(e) { toast('Erreur: '+e.message, 'error'); }
+    };
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  }
 
 })();
