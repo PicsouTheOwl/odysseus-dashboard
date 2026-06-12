@@ -944,8 +944,8 @@ async def chatproxy_stream(request: Request):
     async def event_stream():
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream("POST", f"{HERMES_BRIDGE_URL}/chat/stream", json=bridge_body) as resp:
-                async for chunk in resp.aiter_text():
-                    yield chunk
+                async for raw in resp.aiter_raw():
+                    yield raw
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
