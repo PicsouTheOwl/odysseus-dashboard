@@ -1071,25 +1071,63 @@
   /* ═══════════════════════════════════════════
      CHAT
      ═══════════════════════════════════════════ */
+
+  function chatAdd(role, text, opts = {}) {
+    const c = $('chat-messages');
+    const el = document.createElement('div');
+    el.className = `chat-msg ${role}`;
+    const t = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+    // Add date separator if needed
+    if (!opts.noDateSep && role !== 'system') {
+      const lastSep = c.querySelector('.chat-date-sep:last-of-type');
+      const lastMsg = c.querySelector('.chat-msg:not(.system):last-of-type');
+      const now = new Date();
+      const today = now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+      // Insert date separator if first message of the day
+      if (!lastMsg || !lastSep) {
+        const sep = document.createElement('div');
+        sep.className = 'chat-date-sep';
+        sep.textContent = today;
+        c.appendChild(sep);
+      }
+    }
+
+    const avatarLetter = role === 'user' ? 'L' : role === 'assistant' ? 'B' : '⚙';
+    const msgTimeHtml = `<div class="chat-msg-time">${t}</div>`;
+    el.innerHTML = `
+      <div class="chat-msg-avatar">${avatarLetter}</div>
+      <div>
+        <div class="chat-msg-bubble">${esc(text)}</div>
+        ${msgTimeHtml}
+      </div>`;
+    el.style.opacity = '0';
+    c.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = ''; });
+    c.scrollTop = c.scrollHeight;
+    return el;
+  }
+
   window.chatSend = function(text) {
     const input = $('chat-input');
     const msg = text || input.value.trim();
     if (!msg) return;
-    if (!text) input.value = '';
-    input.style.height = 'auto';
+    if (!text) { input.value = ''; input.style.height = 'auto'; }
     const c = $('chat-messages');
     const w = c.querySelector('.chat-welcome'); if (w) w.remove();
     chatAdd('user', msg);
     chatMsgs.push({ role:'user', content:msg });
 
-    // Create streaming assistant bubble
+    // Typing indicator (bouncing dots)
     const load = document.createElement('div');
-    load.className = 'chat-msg assistant'; load.id = 'chat-load';
-    load.innerHTML = `<div class="chat-msg-avatar">B</div><div><div class="chat-msg-bubble" id="chat-stream-bubble"><span class="chat-cursor">▊</span></div></div>`;
-    c.appendChild(load); c.scrollTop = c.scrollHeight;
+    load.className = 'chat-msg assistant';
+    load.id = 'chat-load';
+    load.innerHTML = `<div class="chat-msg-avatar">B</div><div><div class="chat-msg-bubble"><div class="chat-msg-loading"><span></span><span></span><span></span></div></div></div>`;
+    c.appendChild(load);
+    c.scrollTop = c.scrollHeight;
 
     // Stream via fetch + ReadableStream (SSE)
-    const bubble = $('chat-stream-bubble');
+    const bubbleContainer = load.querySelector('.chat-msg-bubble');
     let fullText = '';
     fetch('/api/hermes/chat/stream', {
       method: 'POST',
@@ -1099,11 +1137,16 @@
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
+      let bubbleCreated = false;
       function read() {
         reader.read().then(({done, value}) => {
           if (done) {
             const el = $('chat-load'); if (el) el.remove();
-            if (fullText) chatMsgs.push({role:'assistant', content:fullText});
+            if (fullText) {
+              chatMsgs.push({role:'assistant', content:fullText});
+              // Replace typing indicator with final message
+              chatAdd('assistant', fullText, {noDateSep: true});
+            }
             return;
           }
           buf += decoder.decode(value, {stream: true});
@@ -1117,7 +1160,13 @@
                 const data = JSON.parse(d);
                 if (data.delta) {
                   fullText += data.delta;
-                  bubble.innerHTML = esc(fullText) + '<span class="chat-cursor">▊</span>';
+                  if (!bubbleCreated) {
+                    // Replace typing indicator content with streaming text
+                    bubbleContainer.innerHTML = esc(fullText) + '<span class="chat-cursor">▊</span>';
+                    bubbleCreated = true;
+                  } else {
+                    bubbleContainer.innerHTML = esc(fullText) + '<span class="chat-cursor">▊</span>';
+                  }
                   c.scrollTop = c.scrollHeight;
                 }
               } catch(err) {}
@@ -1126,7 +1175,8 @@
           read();
         }).catch(err => {
           const el = $('chat-load'); if (el) el.remove();
-          if (!fullText) chatAdd('assistant', '⚠️ ' + err.message);
+          if (!fullText) chatAdd('assistant', '⚠️ Erreur de connexion au serveur IA');
+          else chatAdd('assistant', fullText, {noDateSep: true});
         });
       }
       read();
@@ -1135,15 +1185,6 @@
       chatAdd('assistant', '⚠️ ' + e.message);
     });
   };
-
-  function chatAdd(role, text) {
-    const c = $('chat-messages');
-    const el = document.createElement('div');
-    el.className = `chat-msg ${role}`;
-    const t = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    el.innerHTML = `<div class="chat-msg-avatar">${role==='user'?'L':'B'}</div><div><div class="chat-msg-bubble">${esc(text)}</div><div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px">${t}</div></div>`;
-    c.appendChild(el); c.scrollTop = c.scrollHeight;
-  }
 
   window.chatKeyDown = function(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); } };
 
