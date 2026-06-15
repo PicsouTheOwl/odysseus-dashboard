@@ -730,9 +730,10 @@ body:has(.mail-detail-pane.mobile-show) .mobile-menu-btn {
   .main-content { margin-left:0; padding:var(--space-md); padding-top:calc(var(--header-h) + var(--space-sm)); max-width:100%; }
   .stats-grid { grid-template-columns:repeat(2,1fr); gap:var(--space-sm); }
   .dashboard-grid { grid-template-columns:1fr; gap:var(--space-md); }
-  /* Mobile burger button */
+  /* Mobile: burger + overlay */
   .mobile-menu-btn { display:flex !important; z-index:300; }
-  .sidebar-overlay { display:block !important; }
+  .sidebar-overlay { display:none !important; }
+  .sidebar-overlay.show { display:block !important; opacity:1; }
   .card { padding:var(--space-md); }
   .page-header { margin-bottom:var(--space-md); }
   .dashboard-menu-btn { display:flex !important; }
