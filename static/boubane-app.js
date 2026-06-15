@@ -1448,6 +1448,11 @@
      ═══════════════════════════════════════════ */
   window.go = go;
   window.toggleSidebar = toggleSidebar;
+
+  // Open sidebar by default on desktop
+  if (window.innerWidth > 1024) {
+    document.getElementById('sidebar').classList.add('open');
+  }
   window.loadStats = loadStats;
   window.loadActivity = loadActivity;
   window.loadFiles = loadFiles;

@@ -107,6 +107,10 @@ html { scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
   display:flex; flex-direction:column;
   position:fixed; top:0; left:0; bottom:0; z-index:200;
   transition:transform var(--t-slow) var(--ease);
+  transform:translateX(-100%);
+}
+.sidebar.open {
+  transform:translateX(0);
 }
 .sidebar-header {
   padding:var(--space-lg) var(--space-md) var(--space-md);
